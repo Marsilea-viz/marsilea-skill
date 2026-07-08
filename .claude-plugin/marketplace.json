@@ -1,0 +1,17 @@
+{
+  "name": "marsilea-marketplace",
+  "owner": {
+    "name": "Yimin Zheng"
+  },
+  "metadata": {
+    "description": "Plugins for composable data visualization with Marsilea."
+  },
+  "plugins": [
+    {
+      "name": "marsilea",
+      "source": "./plugins/marsilea",
+      "description": "Build composable, publication-quality figures with the Marsilea Python library — annotated heatmaps, single-cell dot plots, oncoprints, UpSet plots, and more.",
+      "version": "0.1.0"
+    }
+  ]
+}
