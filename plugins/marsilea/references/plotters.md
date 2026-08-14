@@ -11,7 +11,8 @@ passes unknown `**kwargs` down to the underlying matplotlib/seaborn call.
 - Text & label plotters
 - Bar & numeric plotters
 - Statistical (seaborn-backed) plotters
-- Other (arc, area, range, sequence logo)
+- Significance annotation (`annotate_stats`)
+- Other (arc, area, range, sequence logo, image, emoji)
 
 ## Mesh / matrix plotters — `plotter/mesh.py`
 
@@ -30,10 +31,33 @@ mp.Colors(data, palette=None, cmap=None, mask=None, linewidth=None,
 
 mp.SizedMesh(size, color=None, cmap=None, norm=None, vmin=None, vmax=None,
              alpha=None, center=None, sizes=(1, 200), size_norm=None,
-             edgecolor=None, linewidth=1, marker='o', palette=None,
-             size_legend_kws=None, color_legend_kws=None)
+             edgecolor=None, linewidth=1, frameon=True, grid=False,
+             grid_color='.8', grid_linewidth=1, palette=None, marker='o',
+             legend=True, size_legend_kws=None, color_legend_kws=None,
+             edgecolor_legend_text=None, edgecolor_legend_kws=None, **kwargs)
 # Dot matrix: dot size encodes `size` matrix, color encodes `color` matrix.
 # Wrapped by ma.SizedHeatmap. Set color="none" + edgecolor for open circles.
+#
+# REACH FOR THIS whenever a cell carries TWO values — expression + % of cells,
+# NES + FDR, logFC + p-value, mean + n. A heatmap can only show one of them.
+# Also for sparse/zero-heavy matrices, where a heatmap makes "zero" and "low"
+# the same color but dot area shrinks to nothing.
+#
+# Two knobs decide whether it reads correctly:
+#   size_norm=Normalize(vmin, vmax)  pin the size scale to the meaningful range.
+#       Omit it and sizes autoscale to the observed data, so the smallest value
+#       present is always the smallest dot — 40 % on a 0-100 % scale draws as if
+#       it were 0 %. This renders fine and is wrong; there is no warning.
+#   sizes=(lo, hi)  marker AREA range in points^2. Default (1, 200); up to
+#       (1, 600) on a roomy canvas, lower when cells are tight.
+# size_legend_kws / color_legend_kws go to legendkit. ALWAYS pass a `fmt` to the
+# size legend — its labels are interpolated data values, so the default prints
+# things like "1.17641":
+#     size_legend_kws=dict(title="% cells", fmt="{x:.0f}")
+# `show_at=[0.25, 0.5, 1.0]` picks which entries appear; the values are
+# PERCENTILES of the data range, not data values. `num_handle=4` sets how many
+# entries to show when `show_at` is omitted.
+# `color` categorical? Then `palette` is required to map category -> color.
 
 mp.MarkerMesh(data, color='black', marker='*', size=35, frameon=False, label=None)
 # Draws a marker at each True cell of a boolean matrix. Great for flagging
@@ -109,6 +133,105 @@ mp.Point / mp.Strip / mp.Swarm(
 row/column of the main plot), or a dict/mapping of name -> data for grouped hue.
 Example: `mp.Violin(expr, color="#ee6666", linewidth=0, density_norm="count")`.
 
+These cannot be `add_layer`'d onto a mesh canvas — a seaborn plot scales the
+axes to the data while a mesh draws a fixed grid of cells, so one displaces the
+other. Marsilea raises `LayerConflict`; attach them to a side instead.
+
+## Significance annotation — `plotter/_stats_annot.py`
+
+Marsilea ≥ 0.7. Every seaborn-backed plotter above carries `annotate_stats()`,
+which tests pairs of categories and draws the brackets. Requires the optional
+extra `pip install "marsilea[stats]"` (statannotations; `statsmodels` on top for
+multiple-comparison correction). Marsilea draws the brackets itself, so a
+comparison spanning two groups of a split canvas looks like any other.
+
+```python
+plot.annotate_stats(pairs, test="Mann-Whitney", ref=None, pvalues=None,
+                    **configure_kws)   # returns the plotter
+```
+
+Call it on the plotter before attaching it to the board; brackets are drawn at
+`render()`.
+
+### `pairs` — what gets compared
+
+Categories are named by the **columns of the input data**. A plain array names
+them by position (`0, 1, 2, …`). Duplicated column labels raise.
+
+| Form | Meaning |
+|---|---|
+| `"hue"` | Compare the hue levels inside every category. Needs dict input: `mp.Box({"WT": df1, "KO": df2})`. |
+| `"all"` | Compare the categories with each other. On a split canvas this stays **inside each group**; warns above 8 categories (36 brackets is unreadable). |
+| explicit list | Only the comparisons you name. |
+
+In an explicit list each side of a pair is a bare category label,
+`("Gene 1", "Gene 4")`, or a `(category, hue_level)` tuple when the data has
+hue, `(("Gene 1", "WT"), ("Gene 1", "KO"))`. Mixing the two forms raises.
+
+`ref=` reduces a shorthand to comparisons against one reference — a hue level
+for `pairs="hue"`, a category label for `pairs="all"`. A category `ref` reaches
+into every group, not just its own, which is how you compare one control
+category against everything after `group_cols`.
+
+```python
+box.annotate_stats(pairs="hue", ref="Control")           # each level vs Control
+bar.annotate_stats(pairs="all", ref="0", text_format="star")   # each dose vs 0 mg
+box.annotate_stats(pairs=[(("Gene 1", "WT"), ("Gene 1", "KO"))])
+```
+
+### `test` — statannotations' catalogue
+
+`Mann-Whitney` (default), `Mann-Whitney-gt`, `Mann-Whitney-ls`, `t-test_ind`,
+`t-test_welch`, `t-test_paired`, `Wilcoxon`, `Kruskal`, `Levene`,
+`Brunner-Munzel`.
+
+### `pvalues` — annotate values you already have
+
+```python
+box.annotate_stats(pairs=[...], pvalues=[0.3, 1e-5], text_format="star")
+```
+
+One value per pair, in the order the pairs were listed. Needs an explicit
+`pairs` list (a shorthand has no fixed order to match against), and no test is
+run. This is the hook for a DE pipeline's adjusted p-values.
+
+### `configure_kws` — everything else
+
+An unknown name **raises** rather than being silently ignored.
+
+| Kwarg | Effect |
+|---|---|
+| `comparisons_correction` | `Bonferroni`, `Holm-Bonferroni`, `Benjamini-Hochberg`, `Benjamini-Yekutieli` (aliases `bonf`, `HB`, `BH`/`fdr_bh`, `BY`/`fdr_by`). Needs `statsmodels`. |
+| `alpha` | Significance level used by the correction. Default `0.05`. |
+| `text_format` | `star` (`***`), `simple` (`p ≤ 0.001`), `full` (test name + p). |
+| `pvalue_thresholds` | Custom cutoff → symbol table, e.g. `[[1e-3, "***"], [1e-2, "**"], [0.05, "*"], [1, "ns"]]`. |
+| `color`, `line_width`, `text_offset`, `fontsize` | Bracket and label styling. |
+
+The remaining names come straight from statannotations' `PValueFormat`:
+`show_test_name`, `pvalue_format_string`, `simple_format_string`,
+`correction_format`, `p_capitalized`, `p_separators`.
+
+The correction covers **every bracket drawn on the plot as one family** — a
+split canvas is one family of tests, not one per group. With `pairs="hue"` that
+is one test per category, so correcting matters.
+
+With a correction applied, a label reading `* (ns)` is not a bug: the raw
+p-value was significant and the corrected one is not. `correction_format`
+controls that suffix.
+
+### Behaviour worth knowing
+
+- Brackets are attached to categories, not positions, so `group_cols`/`group_rows`
+  and clustering carry them along with the data.
+- A pair whose sides land in **different groups** is bracketed across both axes,
+  drawn in figure coordinates above the within-group brackets it passes over.
+- A plotter on the left or right is drawn horizontally and the brackets follow;
+  on the left they sit on the outer side, away from the main canvas.
+- `mp.Strip`, `mp.Swarm` and `mp.Point` draw hue levels **on top of each other**
+  unless given `dodge=True`. Comparisons between overlaid levels have nothing to
+  point at, so they are skipped with a warning — pass `dodge=True`.
+- A pair naming a category that is not in the data is skipped with a warning.
+
 ## Other common plotters
 
 ```python
@@ -126,4 +249,11 @@ mp.Range(data, items=None, marker='o', markersize=50, color1='#F75940',
 
 mp.SeqLogo(matrix, width=0.9, color_encode=None, stack='descending', **kwargs)  # plotter/bio.py
 # Sequence logo; `matrix` is a pandas DataFrame (positions x letters).
+
+mp.Image(images, align='center', scale=1, spacing=0.1, resize=None)  # plotter/images.py
+# One image per row/column, as an aligned strip. `images` are file paths, URLs,
+# or numpy arrays. `spacing` is 0-1, relative to the image container.
+
+mp.Emoji(codes, lang='en', scale=1, spacing=0.1, **kwargs)          # plotter/images.py
+# One twemoji per row/column, from unicode ("😆😆🤣") or short codes.
 ```

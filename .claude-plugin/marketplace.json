@@ -11,7 +11,7 @@
       "name": "marsilea",
       "source": "./plugins/marsilea",
       "description": "Build composable, publication-quality figures with the Marsilea Python library — annotated heatmaps, single-cell dot plots, oncoprints, UpSet plots, and more.",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ]
 }

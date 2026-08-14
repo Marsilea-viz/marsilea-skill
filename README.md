@@ -2,8 +2,9 @@
 
 A Claude Code / Cowork plugin that teaches Claude to build composable,
 publication-quality figures with the [Marsilea](https://marsilea.readthedocs.io)
-Python library — annotated and clustered heatmaps, single-cell dot plots,
-oncoprints, UpSet plots, sequence logos, arc diagrams, and more.
+Python library — annotated and clustered heatmaps, dot/bubble plots (single-cell
+markers, GSEA enrichment), significance-annotated panels, oncoprints, UpSet
+plots, sequence logos, arc diagrams, and more.
 
 ## Install
 
@@ -24,6 +25,13 @@ Requires the `marsilea` package in your Python environment:
 
 ```
 pip install marsilea   # or: conda install -c conda-forge marsilea
+```
+
+Significance annotation needs **marsilea >= 0.7** plus its optional extra
+(`statannotations` + `statsmodels`):
+
+```
+pip install "marsilea[stats]"
 ```
 
 ## What's inside
