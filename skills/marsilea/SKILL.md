@@ -3,22 +3,19 @@ name: marsilea
 description: >-
   Build composable, publication-quality figures with the Marsilea Python library
   — a central plot (heatmap, dot matrix, bar chart) surrounded by aligned panels
-  like dendrograms, category strips, bar charts, labels, and violins. Use
-  whenever the user wants to create, edit, or debug a Marsilea plot, or describes
-  a multi-panel figure with aligned side annotations even without naming
-  Marsilea: clustered/grouped heatmaps, oncoprints, UpSet plots, sequence logos,
-  arc diagrams, or "a heatmap with a dendrogram on top and a bar chart on the
-  side." Also for "annotate this heatmap" or "cluster these rows and label the
-  groups." Use it too for any matrix carrying TWO values per cell — dot / bubble
-  / balloon plots where size encodes one and color the other: single-cell marker
-  dot plots (expression × % of cells), GSEA and enrichment dot plots (NES ×
-  FDR), logFC × p-value grids — and for putting significance brackets or stars
-  on a panel of a composed figure. Prefer it over plain matplotlib/seaborn when
-  two or more aligned panels, grouping, or dendrograms are involved. Do NOT use
-  for a single standalone plot (a lone seaborn heatmap, a simple bar/scatter, a
-  one-off boxplot needing p-value stars — that is statannotations' job), Excel
-  color scales, plotly/dashboards, or analysis/clustering that produces no
-  figure (e.g. DESeq2, a bare scipy dendrogram).
+  (dendrograms, category strips, bars, labels). Use when the user wants to
+  create, edit or debug a Marsilea plot, or describes a multi-panel figure with
+  aligned side annotations even if unnamed: clustered/grouped heatmaps,
+  oncoprints, UpSet plots, sequence logos, arc diagrams, "a heatmap with a
+  dendrogram on top and a bar chart on the side". Also for any matrix with TWO
+  values per cell — dot/bubble plots where size encodes one and color the other:
+  single-cell marker dot plots (expression × % cells), GSEA dot plots (NES ×
+  FDR) — and for significance brackets on a composed figure. Prefer over
+  matplotlib/seaborn for multi-panel or grouped figures. Do NOT use for a single
+  standalone plot (a lone heatmap, bar/scatter, or boxplot needing p-value stars
+  — statannotations' job), plotly/dashboards, or analysis producing no figure
+  (DESeq2, a bare scipy dendrogram).
+license: MIT
 ---
 
 # Marsilea: Composable Visualization
